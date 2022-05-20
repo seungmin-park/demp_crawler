@@ -2,8 +2,6 @@ package announce.demp_crawler.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -22,11 +20,11 @@ public class NaverService {
     private static final String DRIVER_ID = "webdriver.chrome.driver";
     private static final String DRIVER_DIR = "C:/chromedriver/chromedriver.exe";
 
-    private static final String NAVER_RECRUIT_SITE = "https://recruit.navercorp.com/cnts/tech";
+    private static final String NAVER_RECRUIT_SITE = "https://recruit.navercorp.com/rcrt/list.do?subJobCdArr=1010001";
 
     private WebDriver webDriver;
 
-    public void naverCrawl() throws InterruptedException {
+    public void naverCrawl() {
         System.setProperty(DRIVER_ID, DRIVER_DIR);
 
         ChromeOptions chromeOptions = new ChromeOptions();
@@ -35,26 +33,47 @@ public class NaverService {
         webDriver.get(NAVER_RECRUIT_SITE);
 
         // 채용 공고 분야별 목록
-        List<WebElement> positions = webDriver.findElements(cssSelector("#naver > div > section.section_info_detail > div > div:nth-child(1) > ul > li"));
+        List<WebElement> techList = webDriver
+                .findElements(cssSelector("#naver > div > section > div > div > div.lnb > div > div > form > div.filter_box > div:nth-child(2) > ul > li:nth-child(1) > ul > li"));
 
-        for (WebElement position : positions) {
-            Thread.sleep(1000);
-            WebElement linkByPosition = position.findElement(tagName("a"));
-            String positionTitle = position.findElement(className("title")).getText();
-            log.info("positionTitle={}", positionTitle);
-            linkByPosition.click();
-            List<WebElement> detailAnnounces = webDriver.findElements(cssSelector("#naver > div > section > div > div > div.sub_container > div.card_wrap > ul > li"));
-            for (WebElement detailAnnounce : detailAnnounces) {
-                WebElement linkByAnnounce = detailAnnounce.findElement(tagName("a"));
-                linkByAnnounce.click();
-                String announceTitle = webDriver.findElement(className("card_title")).getText();
-                log.info("title={}", announceTitle);
-                List<WebElement> detailBox = webDriver.findElements(className("detail_box"));
-                for (WebElement box : detailBox) {
-                }
-            }
-            log.info("detail count={}", detailAnnounces.size());
+        techListClick(techList);
+        loadDetailAnnounceList();
+
+        List<WebElement> cardList = webDriver.findElements(cssSelector("#naver > div > section > div > div > div.sub_container > div.card_wrap > ul > li"));
+        for (WebElement webElement : cardList) {
+            webElement.findElement(tagName("a")).click();
+            webDriver.navigate().back();
         }
         webDriver.close();
+    }
+
+    private void techListClick(List<WebElement> techList) {
+        for (int i = 0; i < techList.size(); i ++) {
+            WebElement button = techList.get(i).findElement(className("btn_tree"));
+            if (i != 0){
+                button.click();
+            }
+            List<WebElement> btns = techList.get(i).findElements(className("btn_filter_select"));
+            for (int j = 0; j < btns.size(); j ++) {
+                if (i != 0 || j != 0) {
+                    btns.get(j).click();
+                }
+            }
+        }
+    }
+
+    private void loadDetailAnnounceList() {
+        WebElement listBtn = webDriver.findElement(className("list_btn"));
+        String totalPerCurrent = webDriver.findElement(cssSelector("#naver > div > section > div > div > div.sub_container > div.card_wrap > div > span"))
+                .getText().replaceAll(" ","");
+        log.info("totalPerCurrent={}",totalPerCurrent);
+        int currentCount = Integer.parseInt(totalPerCurrent.split("/")[0]);
+        int totalCount = Integer.parseInt(totalPerCurrent.split("/")[1]);
+        if (currentCount < totalCount){
+            int repeat = (totalCount - 1) / currentCount;
+            for (int i = 0; i < repeat; i++) {
+                listBtn.click();
+            }
+        }
     }
 }
